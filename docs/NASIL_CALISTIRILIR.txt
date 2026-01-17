@@ -1,0 +1,25 @@
+# TikTok Hükümdar Oyunu - Nasıl Çalıştırılır?
+
+Bu bir prototiptir. Çalıştırmak için bilgisayarınızda **Node.js** kurulu olmalıdır.
+
+## Adım 1: Kurulum
+1. https://nodejs.org/ adresinden Node.js indirip kurun.
+2. Bu klasördeki `server` klasörünü açın.
+3. Adres çubuğuna `cmd` yazıp Enter'a basın (Terminal açılacak).
+4. Şu komutu yapıştırıp Enter'a basın:
+   `npm install tiktok-live-connector socket.io express cors`
+
+## Adım 2: Ayarlar
+1. `server/server.js` dosyasını not defteri ile açın.
+2. `let tiktokUsername = "ademy1lmz";` satırını bulun ve kendi TikTok kullanıcı adınızı yazın. (Canlı yayında olmanız gerekir).
+
+## Adım 3: Çalıştırma
+1. Terminalde (`server` klasöründe) şu komutu yazın:
+   `node server.js`
+   ("Connected to roomId..." yazısını görmelisiniz).
+
+2. `web-client` klasöründeki `index.html` dosyasına çift tıklayıp tarayıcıda açın.
+
+## Nasıl Oynanır?
+- TikTok yayınına gelen her hediye (Gül, Parfüm vb.) haritada o kişi adına şehir fethedecektir.
+- Hediye değeri ne kadar yüksekse o kadar çok şehir alınır.

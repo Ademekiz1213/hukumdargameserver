@@ -1,0 +1,14 @@
+services:
+  # Web Service (Backend + Frontend)
+  - type: web
+    name: tiktok-hukumdar-game
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GOOGLE_APPS_SCRIPT_URL
+        sync: false

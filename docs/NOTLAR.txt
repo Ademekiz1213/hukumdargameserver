@@ -1,0 +1,39 @@
+👑 HÜKÜMDAR: TİKTOK TÜRKİYE HARİTASI - ÖNEMLİ NOTLAR
+--------------------------------------------------
+
+1. BAŞLATMA:
+   - Oyunu her zaman BASLAT.bat ile başlatın. Bu, eski serverları 
+     temizler ve çakışmaları önler.
+
+2. TİKTOK BAĞLANTISI:
+   - Yayıncı adı girerken yayının MUTLAKA açık olması gerekir. 
+     Yayın kapalıyken bağlantı kurulamaz.
+
+3. YÖNETİCİ PANELİ (AYARLAR):
+   - Oyun içindeki dişli çark simgesinden ulaşılan ayarlar, siz yayındayken 
+     canlı olarak değiştirilebilir. Kaydet dediğiniz anda tüm değişiklikler 
+     yayına yansır.
+
+4. RENK PALETİ:
+   - Eğer gelen kişilerin renklerinin karışık değil, sizin istediğiniz sırada 
+     olmasını istiyorsanız Ayarlar -> Renkler kısmından "Karıştır" seçeneğini 
+     kapatın. Renkler listedeki sıraya göre dağıtılacaktır.
+
+5. VERİ KAYDI:
+   - Şehir sayıları, hükümdarlar listesi ve renk ayarlarınız tarayıcıda 
+     saklanır. Bilgisayarı kapatsanız bile tekrar açtığınızda kaldığı 
+     yerden devam eder.
+
+6. SIFIRLAMA:
+   - Yeni bir oyuna başlamak isterseniz Ayarlar -> Genel kısmındaki 
+     "OYUNU SIFIRLA" butonunu kullanın. Bu işlem tüm haritayı gri yapar 
+     ve her şeyi temizler.
+
+7. HÜKÜMDARLAR PANELİ:
+   - Manuel olarak birinin puanını artırmak veya azaltmak isterseniz 
+     sağdaki panelin üzerine farenizle gelin; animasyon duracak ve 
+     +/- butonları görünür olacaktır.
+
+--------------------------------------------------
+Bol Etkileşimli Yayınlar Dileriz!
+--------------------------------------------------

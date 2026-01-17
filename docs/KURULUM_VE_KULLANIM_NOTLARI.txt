@@ -1,0 +1,33 @@
+👑 👑 HÜKÜMDAR: TİKTOK TÜRKİYE HARİTASI KURULUM VE KULLANIM NOTLARI 👑 👑
+----------------------------------------------------------------------
+
+1. ADIM: KURULUM (Bilgisayarda Node.js Yüklü Olmalıdır)
+------------------------------------------------------
+* Bilgisayarınıza Node.js yüklü değilse "nodejs.org" adresinden indirip kurun.
+* "server" klasörünü açın.
+* Klasörün içindeki boş bir yere sağ tıklayıp "Terminal" veya "Komut İstemi" açın.
+* Şu komutu yazıp Enter'a basın: npm install
+* Yükleme bitince siyah pencereyi kapatabilirsiniz.
+
+2. ADIM: OYUNU BAŞLATMA
+-----------------------
+* Ana klasördeki "BASLAT.bat" dosyasına çift tıklayın.
+* Gelen ekrana yayını yapacağınız TikTok kullanıcı adını yazın ve Enter'a basın.
+* Oyun ekranı tarayıcınızda otomatik olarak açılacaktır.
+
+3. ADIM: OYUN İÇİ AYARLAR VE YÖNETİM
+------------------------------------
+* AYARLAR: Sağ üstteki Dişli (Settings) ikonuna tıklayın.
+* HEDİYE PUANLARI: Hediye sekmesinden hangi hediyenin kaç şehir vereceğini ayarlayabilirsiniz.
+* RENKLER: Renk sekmesinden oyuncu renklerini düzenleyebilir veya karıştırma modunu kapatıp (Shuffle OFF) sırayla dağıtabilirsiniz.
+* HÜKÜMDARLAR: Geçmiş kazananların puanlarını artırmak/azaltmak için listenin üzerine farenizle gelmeniz yeterlidir.
+
+4. ÖNEMLİ İPUÇLARI
+------------------
+* SIFIRLAMA: Yeni bir yarışma başlatmak için Ayarlar -> Genel -> "OYUNU SIFIRLA" yolunu kullanın.
+* KAYIT: Tüm veriler (puanlar, renkler, ayarlar) otomatik kaydedilir, tarayıcı kapansa bile kaybolmaz.
+* SERVER KAPATMA: Eğer bir sorun olursa "SERVER_DURDUR.bat" dosyasını kullanıp sonra tekrar başlatın.
+
+----------------------------------------------------------------------
+Yazılımımızla bol keşfetli ve etkileşimli yayınlar dileriz!
+----------------------------------------------------------------------
