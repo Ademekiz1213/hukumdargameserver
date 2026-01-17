@@ -1,0 +1,21 @@
+{
+    "name": "tiktok-ruler-server",
+    "version": "1.0.0",
+    "description": "TikTok Live Game Server - Hükümdar Oyunu",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.1",
+        "express": "^5.2.1",
+        "socket.io": "^4.8.3",
+        "tiktok-live-connector": "^2.1.1-beta1",
+        "google-spreadsheet": "^4.1.2",
+        "google-auth-library": "^9.6.3"
+    }
+}

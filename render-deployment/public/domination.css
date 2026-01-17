@@ -1,0 +1,283 @@
+/* New Domination Animation - Sword Slash Edition */
+.domination-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 1) 100%);
+    z-index: 20000;
+    overflow: hidden;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.domination-overlay.active {
+    display: flex;
+}
+
+.domination-layout {
+    display: flex;
+    width: 90%;
+    height: 80%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 50px;
+    position: relative;
+}
+
+/* Winner Side (Left) */
+.winner-side {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    z-index: 10;
+    animation: slideInLeft 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.winner-avatar-big {
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    border: 10px solid #ffd700;
+    box-shadow: 0 0 50px rgba(255, 215, 0, 0.5);
+    object-fit: cover;
+}
+
+.winner-info-card {
+    text-align: center;
+}
+
+.domination-title-text {
+    font-size: 1.5em;
+    /* Smaller as requested */
+    font-weight: 700;
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    margin: 5px 0 0 0;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.winner-display-name {
+    font-size: 3em;
+    /* Make name prominent */
+    font-weight: 900;
+    color: #fff;
+    margin: 0;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Losers Side (Right) */
+.losers-side {
+    flex: 1.5;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 20px;
+    max-height: 100%;
+    overflow: hidden;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 5;
+    animation: slideInRight 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.loser-item-animated {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+}
+
+.loser-avatar-small {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid #ff3b30;
+    object-fit: cover;
+    transition: transform 0.5s;
+}
+
+.elendi-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    background: #ff3b30;
+    color: #fff;
+    padding: 2px 10px;
+    font-size: 1.2em;
+    font-weight: 900;
+    border-radius: 5px;
+    border: 2px solid #fff;
+    opacity: 0;
+    z-index: 10;
+    white-space: nowrap;
+}
+
+/* Sword & Slash */
+.sword-container {
+    position: absolute;
+    top: 50%;
+    left: -200px;
+    width: 400px;
+    z-index: 100;
+    pointer-events: none;
+    transform: translateY(-50%) rotate(-45deg);
+    opacity: 0;
+}
+
+.sword-img {
+    width: 100%;
+    filter: drop-shadow(0 0 20px #ffd700);
+}
+
+.slash-effect {
+    position: absolute;
+    top: 50%;
+    left: 40%;
+    width: 0;
+    height: 10px;
+    background: linear-gradient(90deg, transparent, #fff, #ffd700, transparent);
+    box-shadow: 0 0 30px #fff;
+    z-index: 90;
+    transform: translateY(-50%) rotate(-5deg);
+    pointer-events: none;
+    opacity: 0;
+}
+
+/* Animations Area */
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-200px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(200px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes swordSwing {
+    0% {
+        left: -400px;
+        opacity: 1;
+        transform: translateY(-50%) rotate(-45deg);
+    }
+
+    30% {
+        left: 40%;
+        transform: translateY(-50%) rotate(20deg);
+    }
+
+    100% {
+        left: 120%;
+        transform: translateY(-50%) rotate(-20deg);
+        opacity: 0;
+    }
+}
+
+@keyframes slashGrow {
+    0% {
+        width: 0;
+        opacity: 1;
+    }
+
+    50% {
+        width: 80%;
+        opacity: 1;
+        left: 10%;
+    }
+
+    100% {
+        width: 100%;
+        opacity: 0;
+        left: 0%;
+    }
+}
+
+@keyframes loserBlown {
+    0% {
+        transform: translate(0, 0) rotate(0);
+    }
+
+    100% {
+        transform: translate(var(--fly-x), var(--fly-y)) rotate(var(--fly-rot)) scale(0.5);
+        opacity: 0;
+    }
+}
+
+@keyframes elendiStamp {
+    0% {
+        transform: translate(-50%, -50%) scale(5);
+        opacity: 0;
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(1) rotate(-15deg);
+        opacity: 1;
+    }
+}
+
+.loser-item-animated.blown .loser-avatar-small {
+    animation: loserBlown 1s ease-out forwards;
+}
+
+.loser-item-animated.blown .elendi-label {
+    animation: elendiStamp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.slash-active {
+    animation: slashGrow 0.5s ease-out forwards;
+}
+
+.sword-active {
+    animation: swordSwing 0.8s ease-in-out forwards;
+}
+
+.impact-shake {
+    animation: screenShake 0.4s cubic-bezier(.36, .07, .19, .97) both;
+}
+
+@keyframes screenShake {
+
+    0%,
+    100% {
+        transform: translate(0, 0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translate(-5px, -5px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translate(5px, 5px);
+    }
+}
