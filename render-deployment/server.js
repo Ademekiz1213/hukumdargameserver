@@ -101,7 +101,7 @@ class StreamerRoom {
             if (data.repeatEnd) {
                 this.activeCombos.delete(comboKey);
                 console.log(`[${this.streamerName}] COMBO END: ${data.giftName} x${currentCount}`);
-                return;
+                // RETURN KALDIRILDI - Hediye işlenmeye devam edecek
             }
 
             if (currentCount < lastCount) {
