@@ -243,10 +243,10 @@ class StreamerRoom {
 
         // If no clients left, schedule cleanup after 30 seconds
         if (this.connectedClients.size === 0) {
-            console.log(`⏳ No clients in ${this.streamerName}. Scheduling cleanup in 30s...`);
+            console.log(`⏳ No clients in ${this.streamerName}. Scheduling cleanup in 10s...`);
             this.cleanupTimer = setTimeout(() => {
                 this.cleanup();
-            }, 30000); // 30 seconds grace period
+            }, 10000); // 10 seconds grace period
         }
     }
 

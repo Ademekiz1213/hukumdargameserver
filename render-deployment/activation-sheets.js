@@ -95,23 +95,31 @@ function makeRequest(url, data, redirectCount = 0) {
     });
 }
 
-// Aktivasyon kodunu doğrula
+// Aktivasyon kodunu doğrula (Makine ID gereksinimsiz - Multi-tenant uyumlu)
 async function validateActivationCode(activationCode, machineId = null) {
     try {
-        const currentMachineId = machineId || getMachineId();
-
         if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === 'YOUR_WEB_APP_URL_HERE') {
+            // DEVELOPMENT MODE: Aktivasyon kontrolü bypass (sadece development için!)
+            if (process.env.NODE_ENV === 'development') {
+                console.warn('⚠️ DEVELOPMENT MODE: Aktivasyon kontrolü bypass edildi');
+                return {
+                    valid: true,
+                    message: 'Development mode - aktivasyon bypass',
+                    expiryDate: null
+                };
+            }
+
             return {
                 valid: false,
-                error: 'Google Apps Script URL ayarlanmamış. Lütfen activation-sheets.js dosyasını kontrol edin.'
+                error: 'Google Apps Script URL ayarlanmamış. Lütfen .env dosyasını kontrol edin.'
             };
         }
 
-        // Apps Script'e istek gönder
+        // Apps Script'e istek gönder (Makine ID GÖNDERİLMİYOR - Cloud uyumlu)
         const response = await makeRequest(APPS_SCRIPT_URL, {
             action: 'validate',
-            code: activationCode,
-            machineId: currentMachineId
+            code: activationCode
+            // machineId artık gönderilmiyor - Multi-tenant destek için
         });
 
         return response;
