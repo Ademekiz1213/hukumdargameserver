@@ -404,9 +404,25 @@ io.on('connection', (socket) => {
 
         } catch (err) {
             console.error(`Connection failed for ${cleanUsername}:`, err.message);
+
+            // Hata mesajını analiz et ve kullanıcıya uygun mesaj göster
+            let userMessage = '❌ Bağlantı başarısız.';
+
+            if (err.message.includes('offline') || err.message.includes('not found')) {
+                userMessage = `📴 ${cleanUsername} şu anda canlı yayında DEĞİL!\n\nLütfen yayıncının canlı yayın açmasını bekleyin.`;
+            } else if (err.message.includes('LIVE_ACCESS_UNAUTHORIZED')) {
+                userMessage = `🔒 Bu yayına erişim izni yok.\n\nYayıncı hesabı özel veya erişim kısıtlı olabilir.`;
+            } else if (err.message.includes('timeout')) {
+                userMessage = `⏱️ Bağlantı zaman aşımına uğradı.\n\nİnternet bağlantınızı kontrol edin ve tekrar deneyin.`;
+            } else if (err.message.includes('rate limit')) {
+                userMessage = `⚠️ Çok fazla deneme yapıldı.\n\nBir süre bekleyip tekrar deneyin.`;
+            } else {
+                userMessage = `❌ Bağlantı hatası: ${err.message}\n\nLütfen tekrar deneyin.`;
+            }
+
             socket.emit('connectionStatus', {
                 success: false,
-                message: `❌ Bağlantı başarısız: ${err.message.includes('offline') ? 'Yayın aktif değil!' : 'Lütfen tekrar deneyin.'}`
+                message: userMessage
             });
         }
     });
