@@ -76,6 +76,13 @@ class StreamerRoom {
 
         this.tiktokConnection.on('disconnected', () => {
             console.warn(`⚠️ TikTok connection lost for ${this.streamerName}`);
+
+            // Eğer hiç client yoksa reconnect yapma (cleanup başlamış demektir)
+            if (this.connectedClients.size === 0) {
+                console.log(`ℹ️ No clients in room, skipping reconnect for ${this.streamerName}`);
+                return;
+            }
+
             this.broadcastToRoom('connectionStatus', {
                 success: false,
                 message: '⚠️ Bağlantı koptu! Yeniden bağlanılıyor...',
@@ -179,6 +186,12 @@ class StreamerRoom {
     }
 
     async attemptReconnect() {
+        // Eğer hiç client yoksa reconnect yapma
+        if (this.connectedClients.size === 0) {
+            console.log(`ℹ️ No clients remain, aborting reconnect for ${this.streamerName}`);
+            return;
+        }
+
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             console.error(`❌ Max reconnect attempts reached for ${this.streamerName}`);
             this.broadcastToRoom('connectionStatus', {
