@@ -405,6 +405,13 @@ io.on('connection', (socket) => {
         } catch (err) {
             console.error(`Connection failed for ${cleanUsername}:`, err.message);
 
+            // ÖNEMLİ: Başarısız room'u temizle!
+            const failedRoom = rooms.get(cleanUsername);
+            if (failedRoom) {
+                rooms.delete(cleanUsername);
+                console.log(`🧹 Failed room cleaned up for ${cleanUsername}`);
+            }
+
             // Hata mesajını analiz et ve kullanıcıya uygun mesaj göster
             let userMessage = '❌ Bağlantı başarısız.';
 
