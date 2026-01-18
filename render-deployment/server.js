@@ -331,8 +331,8 @@ io.on('connection', (socket) => {
         const cleanUsername = newUsername.trim().replace('@', '');
         console.log(`🔑 Validating activation for ${cleanUsername}...`);
 
-        // Validate activation code
-        const validation = await validateActivationCode(activationCode);
+        // Validate activation code (YENİ: Yayıncı adı ile birlikte)
+        const validation = await validateActivationCode(activationCode, cleanUsername);
 
         if (!validation.valid) {
             socket.emit('connectionStatus', {

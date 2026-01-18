@@ -95,8 +95,8 @@ function makeRequest(url, data, redirectCount = 0) {
     });
 }
 
-// Aktivasyon kodunu doğrula (Makine ID gereksinimsiz - Multi-tenant uyumlu)
-async function validateActivationCode(activationCode, machineId = null) {
+// Aktivasyon kodunu doğrula (Yayıncı bazlı kontrol ile)
+async function validateActivationCode(activationCode, streamerUsername = null) {
     try {
         if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === 'YOUR_WEB_APP_URL_HERE') {
             // DEVELOPMENT MODE: Aktivasyon kontrolü bypass (sadece development için!)
@@ -115,11 +115,19 @@ async function validateActivationCode(activationCode, machineId = null) {
             };
         }
 
-        // Apps Script'e istek gönder (Makine ID GÖNDERİLMİYOR - Cloud uyumlu)
+        // Yayıncı adı zorunlu (güvenlik için)
+        if (!streamerUsername) {
+            return {
+                valid: false,
+                error: 'Yayıncı kullanıcı adı belirtilmedi.'
+            };
+        }
+
+        // Apps Script'e istek gönder (Aktivasyon Kodu + Yayıncı Adı)
         const response = await makeRequest(APPS_SCRIPT_URL, {
             action: 'validate',
-            code: activationCode
-            // machineId artık gönderilmiyor - Multi-tenant destek için
+            code: activationCode,
+            streamer: streamerUsername.toLowerCase() // Küçük harfe çevir
         });
 
         return response;
