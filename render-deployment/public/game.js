@@ -1,5 +1,8 @@
-﻿const socket = io('http://localhost:3000');
-//const socket = io('https://hukumdargameserver-1.onrender.com');
+﻿// Auto-detect server URL: Use same origin in production, localhost in development
+const SERVER_URL = window.location.hostname === 'localhost'
+    ? 'http://localhost:3000'
+    : window.location.origin;
+const socket = io(SERVER_URL);
 
 // Game State
 const cityOwners = {};
