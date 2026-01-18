@@ -10,7 +10,6 @@ const cors = require('cors');
 // Google Sheets Aktivasyon Sistemi
 const { getMachineId, validateActivationCode } = require('./activation-sheets');
 
-
 const app = express();
 app.use(cors());
 
@@ -25,209 +24,295 @@ const io = new Server(server, {
     }
 });
 
-// Connection State
-let tiktokUsername = process.argv[2] || null;
-let tiktokLiveConnection = null;
-const activeCombos = new Map();
-let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 10;
-const RECONNECT_DELAY = 2000; // 2 saniye
+// ============================================
+// MULTI-TENANT ROOM MANAGEMENT
+// ============================================
+const rooms = new Map(); // streamerName -> RoomData
 
-// Reconnection fonksiyonu
-async function attemptReconnect() {
-    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-        console.error(`❌ Maksimum deneme sayısına ulaşıldı (${MAX_RECONNECT_ATTEMPTS}). Bağlantı tekrar edilemiyor.`);
-        io.emit('connectionStatus', {
-            success: false,
-            message: `❌ Bağlantı tekrar kurulamadı. Lütfen sayfayı yenileyin ve tekrar deneyin.`,
-            reconnecting: false
-        });
-        return;
+class StreamerRoom {
+    constructor(streamerName) {
+        this.streamerName = streamerName;
+        this.tiktokConnection = null;
+        this.activeCombos = new Map();
+        this.connectedClients = new Set(); // Socket IDs
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 10;
+        this.reconnectDelay = 2000;
+        this.reconnectTimer = null;
+        this.cleanupTimer = null;
+
+        console.log(`🏠 Room created for streamer: ${streamerName}`);
     }
 
-    reconnectAttempts++;
-    console.log(`🔄 Yeniden bağlanma denemesi ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}...`);
-
-    io.emit('connectionStatus', {
-        success: false,
-        message: `🔄 Bağlantı koptu! Yeniden bağlanılıyor... (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`,
-        reconnecting: true
-    });
-
-    setTimeout(async () => {
+    async connect() {
         try {
-            if (!tiktokUsername) {
-                console.error('❌ Yayıncı adı bilinmiyor. Yeniden bağlanılamıyor.');
+            if (this.tiktokConnection) {
+                console.log(`⚠️ Room ${this.streamerName} already has active connection`);
                 return;
             }
 
-            console.log(`📡 ${tiktokUsername} yayınına yeniden bağlanılıyor...`);
+            console.log(`📡 Connecting to ${this.streamerName}...`);
+            this.tiktokConnection = new WebcastPushConnection(this.streamerName);
+            this.setupTikTokListeners();
 
-            // Eski bağlantıyı temizle
-            if (tiktokLiveConnection) {
-                try {
-                    tiktokLiveConnection.disconnect();
-                } catch (e) { }
-            }
+            const state = await this.tiktokConnection.connect();
+            console.log(`✅ Connected to ${this.streamerName} | Room ID: ${state.roomId}`);
 
-            // Yeni bağlantı oluştur
-            tiktokLiveConnection = new WebcastPushConnection(tiktokUsername);
-            setupTikTokListeners();
-
-            const state = await tiktokLiveConnection.connect();
-            console.log(`✅ Yeniden bağlantı başarılı! Room ID: ${state.roomId}`);
-
-            reconnectAttempts = 0; // Başarılı oldu, sayacı sıfırla
-
-            io.emit('connectionStatus', {
+            this.reconnectAttempts = 0;
+            this.broadcastToRoom('connectionStatus', {
                 success: true,
-                message: `✅ Bağlantı yeniden kuruldu! (@${tiktokUsername})`
+                message: `✅ Bağlantı kuruldu! (@${this.streamerName})`
             });
 
+            return state;
         } catch (err) {
-            console.error(`❌ Yeniden bağlanma başarısız: ${err.message}`);
-            // Tekrar dene
-            attemptReconnect();
+            console.error(`❌ Connection failed for ${this.streamerName}: ${err.message}`);
+            throw err;
         }
-    }, RECONNECT_DELAY);
-}
+    }
 
-// Setup TikTok event listeners
-function setupTikTokListeners() {
-    if (!tiktokLiveConnection) return;
+    setupTikTokListeners() {
+        if (!this.tiktokConnection) return;
 
-    tiktokLiveConnection.on('disconnected', () => {
-        console.warn('⚠️ TikTok bağlantısı koptu!');
-        io.emit('connectionStatus', {
-            success: false,
-            message: '⚠️ Bağlantı koptu! Yeniden bağlanılıyor...',
-            reconnecting: true
+        this.tiktokConnection.on('disconnected', () => {
+            console.warn(`⚠️ TikTok connection lost for ${this.streamerName}`);
+            this.broadcastToRoom('connectionStatus', {
+                success: false,
+                message: '⚠️ Bağlantı koptu! Yeniden bağlanılıyor...',
+                reconnecting: true
+            });
+            this.attemptReconnect();
         });
 
-        // Otomatik yeniden bağlan
-        attemptReconnect();
-    });
-
-    tiktokLiveConnection.on('error', err => {
-        console.error('❌ TikTok Connector Hatası:', err.message);
-        io.emit('connectionStatus', {
-            success: false,
-            message: `❌ Bağlantı hatası: ${err.message}`,
-            reconnecting: false
+        this.tiktokConnection.on('error', err => {
+            console.error(`❌ TikTok error for ${this.streamerName}:`, err.message);
+            this.broadcastToRoom('connectionStatus', {
+                success: false,
+                message: `❌ Bağlantı hatası: ${err.message}`,
+                reconnecting: false
+            });
         });
-    });
 
-    // Listen for Gifts
-    tiktokLiveConnection.on('gift', data => {
-        const comboKey = `${data.userId}-${data.giftId}`;
-        let lastCount = activeCombos.get(comboKey) || 0;
-        const currentCount = data.repeatCount || 1;
+        this.tiktokConnection.on('gift', data => {
+            const comboKey = `${data.userId}-${data.giftId}`;
+            let lastCount = this.activeCombos.get(comboKey) || 0;
+            const currentCount = data.repeatCount || 1;
 
-        // If this is a combo end event, just clean up and don't process again
-        if (data.repeatEnd) {
-            activeCombos.delete(comboKey);
-            console.log(`[COMBO END] ${data.giftName} x${currentCount} from ${data.nickname || data.uniqueId}`);
+            if (data.repeatEnd) {
+                this.activeCombos.delete(comboKey);
+                console.log(`[${this.streamerName}] COMBO END: ${data.giftName} x${currentCount}`);
+                return;
+            }
+
+            if (currentCount < lastCount) {
+                lastCount = 0;
+            }
+
+            const deltaCount = currentCount - lastCount;
+
+            if (deltaCount > 0) {
+                this.activeCombos.set(comboKey, currentCount);
+
+                const giftData = {
+                    giftName: data.giftName,
+                    diamondCount: data.diamondCount * deltaCount,
+                    sender: data.uniqueId,
+                    userId: data.userId,
+                    nickname: data.nickname || data.uniqueId,
+                    profilePictureUrl: data.profilePictureUrl,
+                    giftIcon: data.giftPictureUrl,
+                    repeatCount: deltaCount,
+                    fullRepeatCount: currentCount,
+                    isEndOfCombo: false
+                };
+
+                console.log(`[${this.streamerName}] GIFT: ${giftData.giftName} x${deltaCount} | From: ${giftData.nickname}`);
+                this.broadcastToRoom('tiktokGift', giftData);
+            }
+        });
+
+        this.tiktokConnection.on('like', data => {
+            const likeData = {
+                sender: data.uniqueId,
+                userId: data.userId,
+                nickname: data.nickname || data.uniqueId,
+                likeCount: parseInt(data.likeCount),
+                totalLikeCount: data.totalLikeCount,
+                profilePictureUrl: data.profilePictureUrl
+            };
+            console.log(`[${this.streamerName}] LIKE: ${likeData.nickname} | Count: ${likeData.likeCount}`);
+            this.broadcastToRoom('tiktokLike', likeData);
+        });
+
+        this.tiktokConnection.on('follow', data => {
+            const followData = {
+                sender: data.uniqueId,
+                userId: data.userId,
+                nickname: data.nickname || data.uniqueId,
+                profilePictureUrl: data.profilePictureUrl
+            };
+            console.log(`[${this.streamerName}] FOLLOW: ${followData.nickname}`);
+            this.broadcastToRoom('tiktokFollow', followData);
+        });
+
+        this.tiktokConnection.on('social', data => {
+            if (data.displayType && data.displayType.includes('follow')) {
+                const followData = {
+                    sender: data.uniqueId,
+                    userId: data.userId,
+                    nickname: data.nickname || data.uniqueId,
+                    profilePictureUrl: data.profilePictureUrl
+                };
+                console.log(`[${this.streamerName}] FOLLOW (social): ${followData.nickname}`);
+                this.broadcastToRoom('tiktokFollow', followData);
+            }
+        });
+
+        this.tiktokConnection.on('streamEnd', () => {
+            console.warn(`[${this.streamerName}] Stream has ended.`);
+            this.broadcastToRoom('connectionStatus', {
+                success: false,
+                message: '📴 Yayın sona erdi.',
+                reconnecting: false
+            });
+        });
+    }
+
+    async attemptReconnect() {
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.error(`❌ Max reconnect attempts reached for ${this.streamerName}`);
+            this.broadcastToRoom('connectionStatus', {
+                success: false,
+                message: `❌ Bağlantı tekrar kurulamadı. Lütfen sayfayı yenileyin.`,
+                reconnecting: false
+            });
             return;
         }
 
-        // Reset if it's a new combo starting
-        if (currentCount < lastCount) {
-            lastCount = 0;
-        }
+        this.reconnectAttempts++;
+        console.log(`🔄 Reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} for ${this.streamerName}`);
 
-        const deltaCount = currentCount - lastCount;
-
-        if (deltaCount > 0) {
-            activeCombos.set(comboKey, currentCount);
-
-            const giftName = data.giftName;
-            const perGiftDiamonds = data.diamondCount;
-            const deltaDiamonds = perGiftDiamonds * deltaCount;
-            const sender = data.uniqueId;
-            const nickname = data.nickname || data.uniqueId;
-            const profilePictureUrl = data.profilePictureUrl;
-
-            console.log(`[GIFT] ${giftName} x${deltaCount} | From: ${nickname} | Diamonds: ${deltaDiamonds}`);
-
-            io.emit('tiktokGift', {
-                giftName,
-                diamondCount: deltaDiamonds,
-                sender,
-                userId: data.userId,
-                nickname,
-                profilePictureUrl,
-                giftIcon: data.giftPictureUrl,
-                repeatCount: deltaCount,
-                fullRepeatCount: currentCount,
-                isEndOfCombo: false
-            });
-        }
-    });
-
-    // Handle Like events
-    tiktokLiveConnection.on('like', data => {
-        const nickname = data.nickname || data.uniqueId;
-        console.log(`[LIKE] ${nickname} liked! Count: ${data.likeCount}`);
-        io.emit('tiktokLike', {
-            sender: data.uniqueId,
-            userId: data.userId,
-            nickname: nickname,
-            likeCount: parseInt(data.likeCount),
-            totalLikeCount: data.totalLikeCount,
-            profilePictureUrl: data.profilePictureUrl
+        this.broadcastToRoom('connectionStatus', {
+            success: false,
+            message: `🔄 Yeniden bağlanılıyor... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
+            reconnecting: true
         });
-    });
 
-    // Handle Follow events
-    tiktokLiveConnection.on('follow', data => {
-        const nickname = data.nickname || data.uniqueId;
-        console.log(`[FOLLOW] ${nickname} followed!`);
-        io.emit('tiktokFollow', {
-            sender: data.uniqueId,
-            userId: data.userId,
-            nickname: nickname,
-            profilePictureUrl: data.profilePictureUrl
-        });
-    });
+        this.reconnectTimer = setTimeout(async () => {
+            try {
+                if (this.tiktokConnection) {
+                    try {
+                        this.tiktokConnection.disconnect();
+                    } catch (e) { }
+                }
 
-    // Handle Social events (often contains follows)
-    tiktokLiveConnection.on('social', data => {
-        if (data.displayType && data.displayType.includes('follow')) {
-            const nickname = data.nickname || data.uniqueId;
-            console.log(`[FOLLOW] ${nickname} followed! (via social)`);
-            io.emit('tiktokFollow', {
-                sender: data.uniqueId,
-                userId: data.userId,
-                nickname: nickname,
-                profilePictureUrl: data.profilePictureUrl
-            });
+                this.tiktokConnection = new WebcastPushConnection(this.streamerName);
+                this.setupTikTokListeners();
+
+                const state = await this.tiktokConnection.connect();
+                console.log(`✅ Reconnected to ${this.streamerName} | Room ID: ${state.roomId}`);
+
+                this.reconnectAttempts = 0;
+                this.broadcastToRoom('connectionStatus', {
+                    success: true,
+                    message: `✅ Bağlantı yeniden kuruldu!`
+                });
+
+            } catch (err) {
+                console.error(`❌ Reconnect failed for ${this.streamerName}: ${err.message}`);
+                this.attemptReconnect();
+            }
+        }, this.reconnectDelay);
+    }
+
+    addClient(socketId) {
+        this.connectedClients.add(socketId);
+        console.log(`👤 Client ${socketId} joined room ${this.streamerName} (Total: ${this.connectedClients.size})`);
+
+        // Cancel cleanup if scheduled
+        if (this.cleanupTimer) {
+            clearTimeout(this.cleanupTimer);
+            this.cleanupTimer = null;
+            console.log(`⏸️ Cleanup cancelled for ${this.streamerName}`);
         }
-    });
+    }
 
-    tiktokLiveConnection.on('streamEnd', () => console.warn('Stream has ended.'));
+    removeClient(socketId) {
+        this.connectedClients.delete(socketId);
+        console.log(`👋 Client ${socketId} left room ${this.streamerName} (Remaining: ${this.connectedClients.size})`);
+
+        // If no clients left, schedule cleanup after 30 seconds
+        if (this.connectedClients.size === 0) {
+            console.log(`⏳ No clients in ${this.streamerName}. Scheduling cleanup in 30s...`);
+            this.cleanupTimer = setTimeout(() => {
+                this.cleanup();
+            }, 30000); // 30 seconds grace period
+        }
+    }
+
+    broadcastToRoom(event, data) {
+        io.to(this.streamerName).emit(event, data);
+    }
+
+    cleanup() {
+        console.log(`🧹 Cleaning up room: ${this.streamerName}`);
+
+        // Clear timers
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+        if (this.cleanupTimer) {
+            clearTimeout(this.cleanupTimer);
+            this.cleanupTimer = null;
+        }
+
+        // Disconnect TikTok connection
+        if (this.tiktokConnection) {
+            try {
+                this.tiktokConnection.disconnect();
+                console.log(`🔌 TikTok connection closed for ${this.streamerName}`);
+            } catch (e) {
+                console.error(`Error disconnecting ${this.streamerName}:`, e.message);
+            }
+            this.tiktokConnection = null;
+        }
+
+        // Clear data
+        this.activeCombos.clear();
+        this.connectedClients.clear();
+
+        // Remove from rooms map
+        rooms.delete(this.streamerName);
+        console.log(`✅ Room ${this.streamerName} cleaned up and removed`);
+    }
+
+    getStatus() {
+        return {
+            streamerName: this.streamerName,
+            connected: this.tiktokConnection !== null,
+            clientCount: this.connectedClients.size,
+            reconnectAttempts: this.reconnectAttempts
+        };
+    }
 }
 
-// Socket.io connection handling
+// ============================================
+// SOCKET.IO CONNECTION HANDLING
+// ============================================
 io.on('connection', (socket) => {
-    console.log('Client connected to socket');
+    console.log(`🔌 New socket connected: ${socket.id}`);
 
-    // Send current state
-    socket.emit('roomConfig', {
-        tiktokUsername,
-        connected: tiktokLiveConnection ? true : false
-    });
+    let currentRoom = null;
 
-    // Handle streamer change request
     socket.on('changeStreamer', async (data) => {
-        // Eski format için geriye dönük uyumluluk
         let newUsername, activationCode;
 
+        // Backward compatibility
         if (typeof data === 'string') {
-            // Eski format (sadece username)
             newUsername = data;
             activationCode = null;
         } else {
-            // Yeni format (object)
             newUsername = data.username;
             activationCode = data.activationCode;
         }
@@ -244,9 +329,9 @@ io.on('connection', (socket) => {
         }
 
         const cleanUsername = newUsername.trim().replace('@', '');
-        console.log(`Aktivasyon kodu kontrol ediliyor...`);
+        console.log(`🔑 Validating activation for ${cleanUsername}...`);
 
-        // Aktivasyon kodunu doğrula
+        // Validate activation code
         const validation = await validateActivationCode(activationCode);
 
         if (!validation.valid) {
@@ -257,9 +342,19 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Aktivasyon başarılı
-        console.log(`✅ Aktivasyon başarılı! Kalan gün: ${validation.expiryDate || 'Sınırsız'}`);
-        console.log(`Connecting to streamer: ${cleanUsername}`);
+        console.log(`✅ Activation valid! Expiry: ${validation.expiryDate || 'Unlimited'}`);
+
+        // Leave previous room if any
+        if (currentRoom) {
+            socket.leave(currentRoom);
+            const room = rooms.get(currentRoom);
+            if (room) {
+                room.removeClient(socket.id);
+            }
+        }
+
+        currentRoom = cleanUsername;
+        socket.join(currentRoom);
 
         socket.emit('connectionStatus', {
             success: false,
@@ -268,34 +363,34 @@ io.on('connection', (socket) => {
         });
 
         try {
-            // Disconnect from current streamer
-            if (tiktokLiveConnection) {
-                tiktokLiveConnection.disconnect();
+            // Get or create room
+            let room = rooms.get(cleanUsername);
+
+            if (!room) {
+                // Create new room
+                room = new StreamerRoom(cleanUsername);
+                rooms.set(cleanUsername, room);
+                await room.connect();
+            } else {
+                console.log(`♻️ Reusing existing room for ${cleanUsername}`);
             }
 
-            // Clear combos
-            activeCombos.clear();
+            // Add client to room
+            room.addClient(socket.id);
 
-            // Update username and create new connection
-            tiktokUsername = cleanUsername;
-            tiktokLiveConnection = new WebcastPushConnection(tiktokUsername);
+            // Send room config
+            socket.emit('roomConfig', {
+                tiktokUsername: cleanUsername,
+                connected: room.tiktokConnection !== null
+            });
 
-            // Setup event listeners
-            setupTikTokListeners();
-
-            // Attempt connection
-            const state = await tiktokLiveConnection.connect();
-            console.info(`Connected to roomId ${state.roomId} (@${tiktokUsername})`);
-
-            // Notify all clients
-            io.emit('roomConfig', { tiktokUsername, connected: true });
             socket.emit('connectionStatus', {
                 success: true,
-                message: `✅ ${tiktokUsername} yayınına bağlandı!${validation.expiryDate ? ` (Geçerlilik: ${validation.expiryDate})` : ''}`
+                message: `✅ ${cleanUsername} yayınına bağlandı!${validation.expiryDate ? ` (Geçerlilik: ${validation.expiryDate})` : ''}`
             });
 
         } catch (err) {
-            console.error('Connection failed:', err.message);
+            console.error(`Connection failed for ${cleanUsername}:`, err.message);
             socket.emit('connectionStatus', {
                 success: false,
                 message: `❌ Bağlantı başarısız: ${err.message.includes('offline') ? 'Yayın aktif değil!' : 'Lütfen tekrar deneyin.'}`
@@ -304,13 +399,34 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log('Client disconnected');
+        console.log(`🔌 Socket disconnected: ${socket.id}`);
+
+        if (currentRoom) {
+            const room = rooms.get(currentRoom);
+            if (room) {
+                room.removeClient(socket.id);
+            }
+        }
+    });
+});
+
+// ============================================
+// STATUS ENDPOINT
+// ============================================
+app.get('/status', (req, res) => {
+    const roomStatuses = Array.from(rooms.values()).map(room => room.getStatus());
+    res.json({
+        totalRooms: rooms.size,
+        rooms: roomStatuses,
+        uptime: process.uptime()
     });
 });
 
 // Start server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`);
-    console.log('Waiting for client to connect and specify streamer...');
+    console.log(`✅ Multi-Tenant Server listening on port ${PORT}`);
+    console.log(`📊 Status endpoint: http://localhost:${PORT}/status`);
+    console.log(`🎮 Game client: http://localhost:${PORT}`);
+    console.log('Waiting for clients to connect...');
 });
