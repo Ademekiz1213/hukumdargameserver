@@ -241,12 +241,12 @@ class StreamerRoom {
         this.connectedClients.delete(socketId);
         console.log(`👋 Client ${socketId} left room ${this.streamerName} (Remaining: ${this.connectedClients.size})`);
 
-        // If no clients left, schedule cleanup after 30 seconds
+        // If no clients left, schedule cleanup after 2 seconds (hızlı cleanup)
         if (this.connectedClients.size === 0) {
-            console.log(`⏳ No clients in ${this.streamerName}. Scheduling cleanup in 10s...`);
+            console.log(`⏳ No clients in ${this.streamerName}. Scheduling cleanup in 2s...`);
             this.cleanupTimer = setTimeout(() => {
                 this.cleanup();
-            }, 10000); // 10 seconds grace period
+            }, 2000); // 2 seconds grace period (sayfa yenileme için yeterli)
         }
     }
 
