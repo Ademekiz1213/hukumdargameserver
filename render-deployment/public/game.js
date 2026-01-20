@@ -870,9 +870,9 @@ function updateLeaderboard() {
 }
 
 // ----------------------
-// RULERS HALL OF FAME
+// RULERS HALL OF FAME (YAYINCI BAZLI)
 // ----------------------
-let pastRulers = JSON.parse(localStorage.getItem('tiktokRulers')) || [];
+let pastRulers = JSON.parse(localStorage.getItem(`tiktokRulers_${currentStreamer}`)) || [];
 
 function saveRuler(name, avatar, displayNickname = null) {
     const timestamp = Date.now();
@@ -885,7 +885,7 @@ function saveRuler(name, avatar, displayNickname = null) {
     const nickname = displayNickname || userNicknames[name] || name;
     pastRulers.unshift({ name, avatar, date, timestamp, nickname }); // Add to top (newest at index 0)
     if (pastRulers.length > 2000) pastRulers.pop();
-    localStorage.setItem('tiktokRulers', JSON.stringify(pastRulers));
+    localStorage.setItem(`tiktokRulers_${currentStreamer}`, JSON.stringify(pastRulers));
     renderRulers();
 }
 
@@ -1081,14 +1081,14 @@ function adjustRulerCount(name, delta) {
         }
     }
 
-    localStorage.setItem('tiktokRulers', JSON.stringify(pastRulers));
+    localStorage.setItem(`tiktokRulers_${currentStreamer}`, JSON.stringify(pastRulers));
     renderRulers();
 }
 
 function resetRulers() {
     if (confirm("Hükümdarlar listesini silmek istediğine emin misin?")) {
         pastRulers = [];
-        localStorage.removeItem('tiktokRulers');
+        localStorage.removeItem(`tiktokRulers_${currentStreamer}`);
         renderRulers();
         showNotification("🗑️ Hükümdarlar Silindi!");
     }
@@ -1764,6 +1764,18 @@ socket.on('connectionStatus', (data) => {
     if (data.success) {
         status.innerText = data.message;
         status.className = 'connection-status success';
+
+        // ÖNEMLİ: Yayıncı adını güncelle (username input'undan al)
+        const usernameInput = document.getElementById('streamer-input');
+        if (usernameInput && usernameInput.value) {
+            currentStreamer = usernameInput.value.trim().replace('@', '');
+            console.log(`✅ currentStreamer set to: ${currentStreamer}`);
+
+            // Yayıncıya özel hükümdar listesini yükle
+            pastRulers = JSON.parse(localStorage.getItem(`tiktokRulers_${currentStreamer}`)) || [];
+            renderRulers();
+            console.log(`📜 Loaded ${pastRulers.length} past rulers for ${currentStreamer}`);
+        }
 
         // Başarılı bağlantı bildirimi göster
         showNotification(data.message);
